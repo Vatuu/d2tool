@@ -30,13 +30,12 @@ namespace d2 {
 
         header = parseHeader(headerBuffer);
         name = parsing::format_hex(header.pkgId, 4);
-        entryTable = create_entry_table(input);
         blockTable = create_block_table(input);
-
-        input.close();
-
-        if(isLatest)
+        if(isLatest) {
+            entryTable = create_entry_table(input);
             set_nonce();
+        }
+        input.close();
     }
 
     std::string get_file_typename(u8 fileType) {
@@ -98,6 +97,7 @@ namespace d2 {
                     p::read_offset<u32>(entryTableData, i + 8),
                     p::read_offset<u32>(entryTableData, i + 12));
             entry.fileName = name + '-' + parsing::format_hex(entries.size(), 2);
+            entries.push_back(entry);
         }
         return entries;
     }

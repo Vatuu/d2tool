@@ -31,7 +31,7 @@ namespace d2 {
             u32 patchCount = 0;
             for(const auto& entry : this->packages)
                 patchCount += entry.second.patches.size();
-            window->add_output_line(d2::parsing::format("Ready to extract %d packages. (%d Patches)", pkgCount, patchCount));
+            window->add_output_line(parsing::format("Ready to extract %d packages. (%d Patches)", pkgCount, patchCount));
         }
     }
 
@@ -93,7 +93,7 @@ namespace d2 {
         window->add_output_line("Extraction complete.");
     }
 
-    void Extractor::process_entry(Entry& entry, Package pkg, std::map<u8, std::ifstream> streams, std::vector<byte>& buffer) {
+    void Extractor::process_entry(Entry& entry, Package pkg, std::map<u8, std::ifstream>& streams, std::vector<byte>& buffer) {
         u16 currentBlock = entry.startingBlock;
         u32 blockOffset = entry.startBlockOffset;
         auto blockCount = (size_t)(std::floor(blockOffset + entry.fileSize - 1) / Block::BLOCK_SIZE);
@@ -104,6 +104,7 @@ namespace d2 {
             window->add_output_line(parsing::format("--Extracting Block #%d...", b.id));
             if(!streams.count(b.patchId)) {
                 window->add_output_line(parsing::format("--Patch #%d not found! Skipping...", b.patchId));
+                currentBlock++;
                 continue;
             }
             std::ifstream &stream = streams[b.patchId];
