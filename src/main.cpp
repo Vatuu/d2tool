@@ -1,10 +1,10 @@
 #include "main.h"
-#include "window_extractor.h"
 
 namespace d2 {
     bool Destiny2Tool::OnInit() {
         auto *window = new ui::ExtractorWindows();
         window->Show(true);
+        window->add_output_line("Please make a selection...");
         return true;
     }
 

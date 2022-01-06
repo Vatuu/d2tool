@@ -1,26 +1,42 @@
 #include "package.h"
-
-#include <fstream>
-
 #include "parse_helper.h"
+#include "file_helper.h"
+
+#include <assert.h>
+#include <fstream>
+#include <iostream>
 
 namespace d2 {
 
-    using namespace parsing;
+    namespace p = parsing;
 
-    Package::Package(const std::string& packageDir) {
-        name = parsing::format_hex(header.pkgId, 4);
-        path = packageDir;
+    Package::Package(const std::string& dir, const std::string& packageName, bool isLatest) {
+        if(isLatest) {
+            std::vector<std::string> pkgs = d2::files::file_get_patches(packageName, dir);
+            path = pkgs[0];
+            if(pkgs.size() > 1) {
+                std::for_each(pkgs.begin() + 1, pkgs.end(), [&](const std::string& entry) {
+                    u8 patchId = entry.at(entry.size() - 5);
+                    patches.insert(std::pair<u8, Package>(patchId, Package(entry, "")));
+                });
+            }
+        } else
+            path = dir;
 
-        std::ifstream input(packageDir, std::ios::in);
+
+        std::ifstream input(path, std::ios::in);
         byte headerBuffer[HEADER_SIZE];
         input.read((char*)&headerBuffer, HEADER_SIZE);
 
-        //TODO: Patch Stuff
         header = parseHeader(headerBuffer);
+        name = parsing::format_hex(header.pkgId, 4);
         entryTable = create_entry_table(input);
         blockTable = create_block_table(input);
+
         input.close();
+
+        if(isLatest)
+            set_nonce();
     }
 
     std::string get_file_typename(u8 fileType) {
@@ -59,12 +75,12 @@ namespace d2 {
 
     PackageHeader Package::parseHeader(byte *data) {
         return PackageHeader{
-                .pkgId = read_offset<u16>(data, 0x10),
-                .patchId = read_offset<u16>(data, 0x30),
-                .entryTableOffset = read_offset<u32>(data, 0x44),
-                .entryTableSize = read_offset<u32>(data, 0x60),
-                .blockTableSize = read_offset<u32>(data, 0x68),
-                .blockTableOffset = read_offset<u32>(data, 0x6C)
+                .pkgId = p::read_offset<u16>(data, 0x10),
+                .patchId = p::read_offset<u16>(data, 0x30),
+                .entryTableOffset = p::read_offset<u32>(data, 0x44),
+                .entryTableSize = p::read_offset<u32>(data, 0x60),
+                .blockTableSize = p::read_offset<u32>(data, 0x68),
+                .blockTableOffset = p::read_offset<u32>(data, 0x6C)
         };
     }
 
@@ -77,10 +93,10 @@ namespace d2 {
         std::vector<Entry> entries;
         for(uint i = 0; i < tableSize; i += Entry::ENTRY_SIZE) {
             Entry entry = decodeEntry(
-                    read_offset<u32>(entryTableData, i),
-                    read_offset<u32>(entryTableData, i + 4),
-                    read_offset<u32>(entryTableData, i + 8),
-                    read_offset<u32>(entryTableData, i + 12));
+                    p::read_offset<u32>(entryTableData, i),
+                    p::read_offset<u32>(entryTableData, i + 4),
+                    p::read_offset<u32>(entryTableData, i + 8),
+                    p::read_offset<u32>(entryTableData, i + 12));
             entry.fileName = name + '-' + parsing::format_hex(entries.size(), 2);
         }
         return entries;
@@ -95,15 +111,22 @@ namespace d2 {
         std::vector<Block> blocks;
         for(int i = 0; i < tableSize; i += Block::BLOCK_ENTRY_SIZE) {
             Block block;
-            block.offset = read_offset<u32>(blockTableData, i);
-            block.size = read_offset<u32>(blockTableData, i + 4);
-            block.patchId = read_offset<u16>(blockTableData, i + 8);
-            block.flags = read_offset<u16>(blockTableData, i + 10);
-            block.hash = get_flipped_string(blockTableData, 20, 12);
-            block.gcmTag = get_flipped_string(blockTableData, 16, 32);
+            block.offset = p::read_offset<u32>(blockTableData, i);
+            block.size = p::read_offset<u32>(blockTableData, i + 4);
+            block.patchId = p::read_offset<u16>(blockTableData, i + 8);
+            block.flags = p::read_offset<u16>(blockTableData, i + 10);
+            block.hash = p::get_flipped_string(blockTableData, 20, 12);
+            block.gcmTag = p::get_flipped_string(blockTableData, 16, 32);
             block.id = blocks.size();
             blocks.push_back(block);
         }
         return blocks;
+    }
+
+    void Package::set_nonce() {
+        std::copy(std::begin(NONCE_SEED), std::end(NONCE_SEED), std::begin(nonce));
+        nonce[0] ^= (header.pkgId >> 8) & 0xFF;
+        nonce[1] = 0xEA;
+        nonce[11] ^= header.pkgId & 0xFF;
     }
 }

@@ -7,14 +7,15 @@
 #include <algorithm>
 
 namespace d2::parsing {
+
     template <class T>
-    T read_offset(byte *headerData, u32 offset) {
+    static T read_offset(byte *headerData, u32 offset) {
         T value;
         memcpy(&value, headerData + offset, sizeof(value));
         return value;
     }
 
-    std::string get_flipped_string(byte *data, u32 length, u32 offset) {
+    static std::string get_flipped_string(byte *data, u32 length, u32 offset) {
         char buffer[length];
         memcpy(&buffer, data + offset, length);
         std::reverse(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
@@ -23,7 +24,7 @@ namespace d2::parsing {
     }
 
     template <class T>
-    T read(byte *headerData) {
+    static T read(byte *headerData) {
         return read_offset<T>(headerData, 0);
     }
 
@@ -32,5 +33,16 @@ namespace d2::parsing {
         std::stringstream builder;
         std::stringstream() << (prefix ? "0x" : "") << std::setfill('0') << std::setw(padding) << std::hex << value;
         return builder.str();
+    }
+
+    template<typename ... Args>
+    static std::string format(const std::string& format, Args ... args) {
+        int size_s = std::snprintf(nullptr, 0, format.c_str(), args ...) + 1;
+        if(size_s <= 0)
+            throw std::runtime_error("Error during formatting.");
+        auto size = static_cast<size_t>(size_s);
+        auto buf = std::make_unique<char[]>(size);
+        std::snprintf(buf.get(), size, format.c_str(), args ...);
+        return (buf.get(), buf.get() + size - 1);
     }
 }
