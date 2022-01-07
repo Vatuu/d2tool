@@ -13,7 +13,7 @@ namespace d2 {
         PackageHeader header;
 
         static PackageHeader parseHeader(byte *data);
-        std::vector<Entry> create_entry_table(std::ifstream& data);
+        std::vector<Entry> create_entry_table(std::ifstream& data) const;
         std::vector<Block> create_block_table(std::ifstream& data);
         void set_nonce();
 

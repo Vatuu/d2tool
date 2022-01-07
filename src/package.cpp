@@ -2,7 +2,7 @@
 #include "parse_helper.h"
 #include "file_helper.h"
 
-#include <assert.h>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 
@@ -29,7 +29,7 @@ namespace d2 {
         input.read((char*)&headerBuffer, HEADER_SIZE);
 
         header = parseHeader(headerBuffer);
-        name = parsing::format_hex(header.pkgId, 4);
+        name = parsing::format("%04x", header.pkgId);
         blockTable = create_block_table(input);
         if(isLatest) {
             entryTable = create_entry_table(input);
@@ -83,20 +83,20 @@ namespace d2 {
         };
     }
 
-    std::vector<Entry> Package::create_entry_table(std::ifstream& data) {
+    std::vector<Entry> Package::create_entry_table(std::ifstream& data) const {
         u32 tableSize = header.entryTableSize * Entry::ENTRY_SIZE;
         byte entryTableData[tableSize];
         data.seekg(header.entryTableOffset, std::ios::beg);
         data.read((char*)&entryTableData, tableSize);
 
         std::vector<Entry> entries;
-        for(uint i = 0; i < tableSize; i += Entry::ENTRY_SIZE) {
+        for(size_t i = 0; i < tableSize; i += Entry::ENTRY_SIZE) {
             Entry entry = decodeEntry(
                     p::read_offset<u32>(entryTableData, i),
                     p::read_offset<u32>(entryTableData, i + 4),
                     p::read_offset<u32>(entryTableData, i + 8),
                     p::read_offset<u32>(entryTableData, i + 12));
-            entry.fileName = name + '-' + parsing::format_hex(entries.size(), 2);
+            entry.fileName = name + '-' + parsing::format("%04x", 4);
             entries.push_back(entry);
         }
         return entries;
@@ -109,15 +109,15 @@ namespace d2 {
         data.read((char*)&blockTableData, tableSize);
 
         std::vector<Block> blocks;
-        for(int i = 0; i < tableSize; i += Block::BLOCK_ENTRY_SIZE) {
+        for(size_t i = 0; i < tableSize; i += Block::BLOCK_ENTRY_SIZE) {
             Block block;
+            block.id = i / Block::BLOCK_ENTRY_SIZE;
             block.offset = p::read_offset<u32>(blockTableData, i);
             block.size = p::read_offset<u32>(blockTableData, i + 4);
             block.patchId = p::read_offset<u16>(blockTableData, i + 8);
             block.flags = p::read_offset<u16>(blockTableData, i + 10);
             block.hash = p::get_flipped_string(blockTableData, 20, 12);
             block.gcmTag = p::get_flipped_string(blockTableData, 16, 32);
-            block.id = blocks.size();
             blocks.push_back(block);
         }
         return blocks;

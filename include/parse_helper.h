@@ -28,13 +28,6 @@ namespace d2::parsing {
         return read_offset<T>(headerData, 0);
     }
 
-    template <typename T>
-    std::string format_hex(T value, u8 padding, bool prefix = false) {
-        std::stringstream builder;
-        std::stringstream() << (prefix ? "0x" : "") << std::setfill('0') << std::setw(padding) << std::hex << value;
-        return builder.str();
-    }
-
     template<typename... Args>
     static std::string format(const std::string& format, Args... args) {
         const auto size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;

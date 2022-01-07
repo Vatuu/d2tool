@@ -22,7 +22,7 @@ Mhm.
 |  0x4   | u32  | 4 Bytes |     File Flags      | 
 |  0x8   | u64  | 8 Bytes | Parsing Information | 
 
-### Reference Info - 32 Bits
+### Reference IDs - 32 Bits
 | `AAAAAAAA ABBBBBBB BBBCCCCC CCCCCCCC` |
 |:-------------------------------------:|
 
@@ -58,10 +58,9 @@ Mhm.
 
 | Offset |  Type  |   Size   | Description |
 |:------:|:------:|:--------:|:-----------:|
-|  0x00  |  u32   | 4 Bytes  |     ID      |
-|  0x04  |  u32   | 4 Bytes  |   Offset    |
-|  0x08  |  u32   | 4 Bytes  |    Size     |
-|  0x0C  |  u16   | 2 Bytes  |  Patch ID   |
-|  0x0E  |  u16   | 2 Bytes  |    Flags    |
-|  0x22  | String | 20 Bytes |    Hash     |
-|  0x32  | String | 16 Bytes |   GCM Tag   |
+|  0x00  |  u32   | 4 Bytes  |   Offset    |
+|  0x04  |  u32   | 4 Bytes  |    Size     |
+|  0x08  |  u16   | 2 Bytes  |  Patch ID   |
+|  0x0A  |  u16   | 2 Bytes  |    Flags    |
+|  0x0C  | String | 20 Bytes |    Hash     |
+|  0x20  | String | 16 Bytes |   GCM Tag   |
