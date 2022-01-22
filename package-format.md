@@ -12,6 +12,8 @@ Mhm.
 |  0x60  | u32  | 4 Bytes |  Entry Table Size  |
 |  0x68  | u32  | 4 Bytes |  Block Table Size  |
 |  0x6C  | u32  | 4 Bytes | Block Table Offset |
+|  0xB8  | u32  | 4 Bytes |  Hash Table Size   |
+|  0xBC  | u32  | 4 Bytes | Hash Table Offset  |
 
 
 ## Package Entry - 16 Bytes

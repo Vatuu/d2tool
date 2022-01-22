@@ -9,13 +9,13 @@
 namespace d2::parsing {
 
     template <class T>
-    static T read_offset(byte *headerData, u32 offset) {
+    static T read_offset(const byte *headerData, u32 offset) {
         T value;
         memcpy(&value, headerData + offset, sizeof(value));
         return value;
     }
 
-    static std::string get_flipped_string(byte *data, u32 length, u32 offset) {
+    static std::string get_flipped_string(const byte *data, u32 length, u32 offset) {
         char buffer[length];
         memcpy(&buffer, data + offset, length);
         std::reverse(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
@@ -23,8 +23,14 @@ namespace d2::parsing {
         return s;
     }
 
+    static std::vector<byte> get_bytes(const byte *data, u32 length, u32 offset) {
+        std::vector<byte> vec(length);
+        memcpy(vec.data(), data + offset, length);
+        return vec;
+    }
+
     template <class T>
-    static T read(byte *headerData) {
+    static T read(const byte *headerData) {
         return read_offset<T>(headerData, 0);
     }
 

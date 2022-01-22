@@ -5,6 +5,7 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <ranges>
 
 namespace d2 {
 
@@ -14,27 +15,32 @@ namespace d2 {
         if(isLatest) {
             std::vector<std::string> pkgs = d2::files::file_get_patches(packageName, dir);
             path = pkgs[0];
-            if(pkgs.size() > 1) {
-                std::for_each(pkgs.begin() + 1, pkgs.end(), [&](const std::string& entry) {
-                    u8 patchId = entry.at(entry.size() - 5);
-                    patches.insert(std::pair<u8, Package>(patchId, Package(entry, "")));
-                });
-            }
+            if(pkgs.size() > 1)
+                for(auto &entry : pkgs | std::views::drop(1))
+                    patches.emplace_back(entry, "");
         } else
             path = dir;
 
+        std::ifstream input(path, std::ios::in | std::ios::binary);
 
-        std::ifstream input(path, std::ios::in);
-        byte headerBuffer[HEADER_SIZE];
-        input.read((char*)&headerBuffer, HEADER_SIZE);
-
+        std::vector<byte> headerBuffer(HEADER_SIZE);
+        input.read((char*)headerBuffer.data(), headerBuffer.size());
         header = parseHeader(headerBuffer);
-        name = parsing::format("%04x", header.pkgId);
-        blockTable = create_block_table(input);
+        name = parsing::format("%04X", header.pkgId);
+
         if(isLatest) {
-            entryTable = create_entry_table(input);
+            std::vector<byte> entryBuffer(header.entryTableSize * Entry::ENTRY_SIZE);
+            input.seekg(header.entryTableOffset, std::ios::beg);
+            input.read((char*)entryBuffer.data(), entryBuffer.size());
+            entryTable = create_entry_table(entryBuffer);
             set_nonce();
         }
+
+        std::vector<byte> blockBuffer(header.blockTableSize * Block::BLOCK_ENTRY_SIZE);
+        input.seekg(header.blockTableOffset, std::ios::beg);
+        input.read((char*)blockBuffer.data(), blockBuffer.size());
+        blockTable = create_block_table(blockBuffer);
+
         input.close();
     }
 
@@ -57,67 +63,60 @@ namespace d2 {
         return refDigits == 1 ? pkgId : pkgId | 0x100 << refDigits;
     }
 
-    Entry decodeEntry(u32 referenceInfo, u32 fileInfo, u32 blockInfo, u32 metadata) {
+    Entry decodeEntry(u32 referenceInfo, u32 fileInfo, u64 parsingInfo) {
         Entry e;
-        e.refId = referenceInfo & 0x1FFF;
-        e.refPackageId = get_pkg_id(referenceInfo);
         e.refUnknownId = (referenceInfo >> 23) & 0x1FF;
-        e.subType = (fileInfo >> 6) & 0x7;
+        e.refPackageId = get_pkg_id(referenceInfo);
+        e.refId = referenceInfo & 0x1FFF;
+
         e.type = (fileInfo >> 9) & 0x7F;
-        e.startingBlock = blockInfo & 0x3FFF;
-        e.startBlockOffset = ((blockInfo >> 14) & 0x3FFF) << 4;
-        e.fileSize = (metadata & 0x3FFFFFF) << 4 | (blockInfo >> 28) & 0xF;
-        e.unknown = (metadata >> 26) & 0x3F;
+        e.subType = (fileInfo >> 6) & 0x7;
+
+        e.unknown = parsingInfo >> 58;
+        e.fileSize = (parsingInfo >> 28) & 0x3FFFFFFF;
+        e.startBlockOffset = (parsingInfo >> 14) & 0x3FFF;
+        e.startingBlock = parsingInfo & 0x3FFF;
+
         e.fileType = get_file_typename(e.type);
         return e;
     }
 
-    PackageHeader Package::parseHeader(byte *data) {
+    PackageHeader Package::parseHeader(std::vector<byte> headerData) {
         return PackageHeader{
-                .pkgId = p::read_offset<u16>(data, 0x10),
-                .patchId = p::read_offset<u16>(data, 0x30),
-                .entryTableOffset = p::read_offset<u32>(data, 0x44),
-                .entryTableSize = p::read_offset<u32>(data, 0x60),
-                .blockTableSize = p::read_offset<u32>(data, 0x68),
-                .blockTableOffset = p::read_offset<u32>(data, 0x6C)
+                .pkgId = p::read_offset<u16>(headerData.data(), 0x10),
+                .patchId = p::read_offset<u16>(headerData.data(), 0x30),
+                .entryTableOffset = p::read_offset<u32>(headerData.data(), 0x44),
+                .entryTableSize = p::read_offset<u32>(headerData.data(), 0x60),
+                .blockTableSize = p::read_offset<u32>(headerData.data(), 0x68),
+                .blockTableOffset = p::read_offset<u32>(headerData.data(), 0x6C)
         };
     }
 
-    std::vector<Entry> Package::create_entry_table(std::ifstream& data) const {
-        u32 tableSize = header.entryTableSize * Entry::ENTRY_SIZE;
-        byte entryTableData[tableSize];
-        data.seekg(header.entryTableOffset, std::ios::beg);
-        data.read((char*)&entryTableData, tableSize);
-
+    std::vector<Entry> Package::create_entry_table(std::vector<byte> tableData) const {
         std::vector<Entry> entries;
-        for(size_t i = 0; i < tableSize; i += Entry::ENTRY_SIZE) {
+        for(size_t i = 0; i < tableData.size(); i += Entry::ENTRY_SIZE) {
             Entry entry = decodeEntry(
-                    p::read_offset<u32>(entryTableData, i),
-                    p::read_offset<u32>(entryTableData, i + 4),
-                    p::read_offset<u32>(entryTableData, i + 8),
-                    p::read_offset<u32>(entryTableData, i + 12));
-            entry.fileName = name + '-' + parsing::format("%04x", 4);
+                    p::read_offset<u32>(tableData.data(), i),
+                    p::read_offset<u32>(tableData.data(), i + 4),
+                    p::read_offset<u64>(tableData.data(), i + 8));
+            entry.id = i / Entry::ENTRY_SIZE;
+            entry.fileName = name + '-' + parsing::format("%04X", entry.id);
             entries.push_back(entry);
         }
         return entries;
     }
 
-    std::vector<Block> Package::create_block_table(std::ifstream& data) {
-        u32 tableSize = header.blockTableSize * Block::BLOCK_ENTRY_SIZE;
-        byte blockTableData[tableSize];
-        data.seekg(header.blockTableOffset, std::ios::beg);
-        data.read((char*)&blockTableData, tableSize);
-
+    std::vector<Block> Package::create_block_table(std::vector<byte> tableData) const {
         std::vector<Block> blocks;
-        for(size_t i = 0; i < tableSize; i += Block::BLOCK_ENTRY_SIZE) {
+        for(size_t i = 0; i < tableData.size(); i += Block::BLOCK_ENTRY_SIZE) {
             Block block;
             block.id = i / Block::BLOCK_ENTRY_SIZE;
-            block.offset = p::read_offset<u32>(blockTableData, i);
-            block.size = p::read_offset<u32>(blockTableData, i + 4);
-            block.patchId = p::read_offset<u16>(blockTableData, i + 8);
-            block.flags = p::read_offset<u16>(blockTableData, i + 10);
-            block.hash = p::get_flipped_string(blockTableData, 20, 12);
-            block.gcmTag = p::get_flipped_string(blockTableData, 16, 32);
+            block.offset = p::read_offset<u32>(tableData.data(), i);
+            block.size = p::read_offset<u32>(tableData.data(), i + 4);
+            block.patchId = p::read_offset<u16>(tableData.data(), i + 8);
+            block.flags = p::read_offset<u16>(tableData.data(), i + 10);
+            block.hash = p::get_flipped_string(tableData.data(), 20, i + 12);
+            block.gcmTag = p::get_bytes(tableData.data(), 16, i + 32);
             blocks.push_back(block);
         }
         return blocks;
@@ -126,7 +125,6 @@ namespace d2 {
     void Package::set_nonce() {
         std::copy(std::begin(NONCE_SEED), std::end(NONCE_SEED), std::begin(nonce));
         nonce[0] ^= (header.pkgId >> 8) & 0xFF;
-        nonce[1] = 0xEA;
         nonce[11] ^= header.pkgId & 0xFF;
     }
 }

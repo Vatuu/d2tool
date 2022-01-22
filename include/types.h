@@ -7,6 +7,7 @@
 typedef uint8_t byte, u8;
 typedef uint16_t ushort, u16;
 typedef uint32_t uint, u32;
+typedef uint64_t ulong, u64;
 
 typedef int16_t s32;
 
@@ -21,15 +22,14 @@ const byte AES_KEY_0[16] = {
 const byte AES_KEY_1[16] = {
         0x3A, 0x4A, 0x5D, 0x36,
         0x73, 0xA6,0x60, 0x58,
-        0x7E, 0x63, 0xE6,0x78,
+        0x7E, 0x63, 0xE6,0x76,
         0xE4, 0x08, 0x92, 0xB5 };
 
 const byte NONCE_SEED[12] {
-        0x84, 0xDF, 0x11, 0xC0,
+        0x84, 0xEA, 0x11, 0xC0,
         0xAC, 0xAB, 0xFA, 0x20,
         0x33, 0x11, 0x26, 0x99
 };
-
 
 struct PackageHeader {
     u16 pkgId, patchId;
@@ -53,7 +53,8 @@ struct Block {
     u32 id;
     u32 offset, size;
     u16 patchId, flags;
-    std::string hash, gcmTag;
+    std::string hash;
+    std::vector<byte> gcmTag;
 
     static const u16 BLOCK_SIZE = 0x4000;
     static const u8 BLOCK_ENTRY_SIZE = 48;
