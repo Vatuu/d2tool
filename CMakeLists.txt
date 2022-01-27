@@ -11,15 +11,12 @@ set(wxWidgets_USE_LIBS)
 
 find_package(wxWidgets 3.1 REQUIRED)
 find_package(OpenSSL REQUIRED Crypto)
-#set(BUILD_TESTING OFF)
-#add_subdirectory(lib/cryptopp)
 
 if(wxWidgets_FOUND)
     if(OPENSSL_FOUND)
         set(HEADERS include/parse_helper.h include/package.h include/types.h include/main.h include/window.h include/file_helper.h include/extractor.h include/callbacks.h)
         set(SOURCES src/package.cpp src/main.cpp src/window_main.cpp src/window_events.cpp src/window_package_selector.cpp src/extractor.cpp)
 
-        #set(LINK_LIBS ${wxWidgets_LIBRARIES} cryptopp-static)
         set(LINK_LIBS ${wxWidgets_LIBRARIES} OpenSSL::Crypto)
         set(INCLUDES include lib ${OPENSSL_INCLUDE_DIR})
 
