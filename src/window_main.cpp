@@ -9,9 +9,9 @@ namespace d2::ui {
         wxBoxSizer* sizer;
         sizer = new wxBoxSizer(wxVERTICAL);
 
-        progress = new wxGauge(this, wxID_ANY, 100, wxDefaultPosition, wxDefaultSize, wxGA_HORIZONTAL);
-        progress->SetValue(0);
-        sizer->Add(progress, 0, wxALL | wxEXPAND, 5);
+        progressBar = new wxGauge(this, wxID_ANY, 100, wxDefaultPosition, wxDefaultSize, wxGA_HORIZONTAL);
+        progressBar->SetValue(0);
+        sizer->Add(progressBar, 0, wxALL | wxEXPAND, 5);
 
         dir = new wxDirPickerCtrl(this, wxID_ANY, wxEmptyString, wxT("Select a package folder..."), wxDefaultPosition, wxDefaultSize, wxDIRP_DEFAULT_STYLE | wxDIRP_DIR_MUST_EXIST);
         sizer->Add(dir, 0, wxALL | wxEXPAND, 5);
@@ -61,6 +61,16 @@ namespace d2::ui {
         return dir->GetPath().utf8_string();
     }
 
+    void ExtractorWindow::init_progress(double d) {
+        progressBar->SetRange(d);
+        progressBar->SetValue(0);
+    }
+
+    void ExtractorWindow::set_progress(double d) {
+        int range = progressBar->GetRange();
+        progressBar->SetValue(d);
+    }
+
     Callbacks::Callbacks(ExtractorWindow *window) {
         this->window = window;
     }
@@ -76,7 +86,11 @@ namespace d2::ui {
                 add_line("! Failed to set up Oodle! Stopping.");
                 break;
             }
-            case d2::extract::Error::OODLE_DECOMPRESS_FAILED: { break; }
+            case d2::extract::Error::OODLE_DECOMPRESS_FAILED: {
+                Block *b = std::get<Block*>(object);
+                add_line(parsing::format("!-Failed to decompress Block #%d:\n!--%s", b->id, additionalInfo->c_str()));
+                break;
+            }
             case d2::extract::Error::MISSING_PATCH: {
                 Block *b = std::get<Block*>(object);
                 add_line(parsing::format("!-Missing Patch #%d for Block #%d!", b->patchId, b->id));
@@ -90,7 +104,7 @@ namespace d2::ui {
     }
 
     void Callbacks::on_extract_start() {
-        //TODO Yes
+        clear();
     }
 
     void Callbacks::on_extract_end(bool errors) {
@@ -104,6 +118,7 @@ namespace d2::ui {
     bool Callbacks::on_package_start(const Package *package, const std::string& packageName) {
         add_line(parsing::format("Extracting %s... (%d Patches)", packageName.c_str(), package->patches.size()));
         add_line(parsing::format("Entry Count: %d", package->entryTable.size()));
+        wxApp::GetMainTopWindow()->CallAfter([this, package]() { window->init_progress(package->entryTable.size()); progressAmount = 0; });
         return true;
     }
 
@@ -114,6 +129,7 @@ namespace d2::ui {
     bool Callbacks::on_entry_start(const Entry *entry) {
         if(entry->fileSize <= 0) {
             add_line(parsing::format("-Entry #%d is empty, skipping.", entry->id));
+            progress_bar();
             return false;
         }
         add_line(parsing::format("-Extracting Entry #%d...", entry->id));
@@ -124,6 +140,7 @@ namespace d2::ui {
 
     void Callbacks::on_entry_finish(const Entry *entry) {
         add_line("-Entry complete.");
+        progress_bar();
     }
 
     bool Callbacks::on_block_start(const Block *block) {
@@ -144,6 +161,12 @@ namespace d2::ui {
     void Callbacks::clear() {
         wxApp::GetMainTopWindow()->CallAfter([this]() {
             window->clear_output();
+        });
+    }
+
+    void Callbacks::progress_bar() {
+        wxApp::GetMainTopWindow()->CallAfter([this]() {
+            window->set_progress(++progressAmount);
         });
     }
 }

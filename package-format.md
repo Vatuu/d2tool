@@ -6,6 +6,11 @@ Mhm.
 
 | Offset | Type |  Size   |    Description     |
 |:------:|:----:|:-------:|:------------------:|
+|  0x0   | u16  | 2 Bytes |      Version       |
+|  0x2   | u16  | 2 Bytes |      Platform      |
+|  0x4   | u32  | 4 Bytes |      Padding       |
+|  0x8   | u32  | 4 Bytes |      Unknown       |
+|  0xC   | u32  | 4 Bytes |      Unknown       |
 |  0x10  | u16  | 2 Bytes |     Package ID     |
 |  0x30  | u16  | 2 Bytes |      Patch ID      |
 |  0x44  | u32  | 4 Bytes | Entry Table Offset |

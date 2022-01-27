@@ -13,14 +13,17 @@
 namespace d2::ui {
 
     struct ExtractorWindow;
+
     struct Callbacks : extract::ExtractCallbacks {
         explicit Callbacks(ExtractorWindow *window);
         ~Callbacks() = default;
 
     private:
         ExtractorWindow *window;
+        u32 progressAmount;
 
         void add_line(const std::string& line);
+        void progress_bar();
         void clear();
 
     public:
@@ -41,7 +44,7 @@ namespace d2::ui {
         friend struct PackageSelector;
 
     protected:
-        wxGauge* progress;
+        wxGauge* progressBar;
         wxDirPickerCtrl* dir;
         wxButton* mode_single;
         wxButton* mode_folder;
@@ -58,6 +61,8 @@ namespace d2::ui {
         std::string get_folder();
         void add_output_line(std::string_view line);
         void clear_output();
+        void init_progress(double d);
+        void set_progress(double d);
     };
 
     class PackageSelector : public wxDialog {

@@ -3,7 +3,7 @@
 #include "types.h"
 
 #include <iomanip>
-#include <mem.h>
+#include <memory>
 #include <algorithm>
 
 namespace d2::parsing {

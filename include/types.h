@@ -9,9 +9,11 @@ typedef uint16_t ushort, u16;
 typedef uint32_t uint, u32;
 typedef uint64_t ulong, u64;
 
-typedef int16_t s32;
+typedef int16_t s16;
+typedef int32_t s32;
+typedef int64_t s64;
 
-typedef int64_t(*OddleLZ64_DecompressDef)(unsigned char* Buffer, int64_t BufferSize, unsigned char* OutputBuffer, int64_t OutputBufferSize, int32_t a, int32_t b, int64_t c, void* d, void* e, void* f, void* g, void* h, void* i, int32_t ThreadModule);
+typedef s64(*OodleLZ_Decompress)(unsigned char* input, s64 inputSize, unsigned char* output, s64 outputSize, s32 a, s32 b, s64 c, void* d, void* e, void* f, void* g, void* h, void* i, s32 ThreadModule);
 
 const byte AES_KEY_0[16] = {
         0xD6, 0x2A, 0xB2, 0xC1,
@@ -56,6 +58,6 @@ struct Block {
     std::string hash;
     std::vector<byte> gcmTag;
 
-    static const u16 BLOCK_SIZE = 0x4000;
+    static const u32 BLOCK_SIZE = 0x40000;
     static const u8 BLOCK_ENTRY_SIZE = 48;
 };
